@@ -14,7 +14,7 @@ typedef struct Player{
     int bet;
     Card card1;
     Card card2;
-    Player *next;
+    struct Player *next;
 } Player;
 Player *playerList;
 
@@ -29,28 +29,34 @@ Card Deck[52];
 int cardsLeft=52;
 
 int getRand();
+void runGame();
 void addPlayer(int, int);
 int playerCount;
 
 int main(){
     resetDeck();
-    for (int i=0;i<52;i++){
-        Card tempCard = drawCard();
-        printf("%d, %d, %c\n", i, tempCard.number, tempCard.suite);
-    }
+    runGame();
 }
 
 void runGame(){
     printf("How many players?");
     scanf("%d",&playerCount);
-    for (int i=0;i<playerCount;i++){
-        addPlayer(1,50);
-        addPlayer(2,70);
-        addPlayer(3,30);
+    addPlayer(1,50);
+    addPlayer(2,70);
+    addPlayer(3,30);
+    addPlayer(4,10000);
+    Player *currentPlayer = playerList;
+    while (currentPlayer != NULL){
+        printf("\n%d, %d, ", currentPlayer->bet, currentPlayer->userID);
+        currentPlayer->card1 = drawCard();
+        currentPlayer->card2 = drawCard();
+        printf("%d, %c, ", currentPlayer->card1.number, currentPlayer->card1.suite);
+        printf("%d, %c\n", currentPlayer->card2.number, currentPlayer->card2.suite);
+        currentPlayer = currentPlayer->next;
     }
 }
 
-void takeBets(){
+void takeBets(){ //TODO: add ability for players to make bets
     int finished = 0;
     int newBet = 0;
     Player *currentPlayer = playerList;
@@ -64,6 +70,7 @@ void addPlayer(int userID, int bet){
     TempElement->userID = userID;
     TempElement->bet = bet;
     TempElement->next = playerList;
+    playerList = TempElement;
     playerCount += 1;
 }
 
@@ -84,4 +91,8 @@ int getRand(){
 
 void resetDeck(){
     memcpy(Deck, baseDeck, sizeof(Deck));
+}
+
+void checkWinner(){
+    //TODO: check for player with winning hand
 }
