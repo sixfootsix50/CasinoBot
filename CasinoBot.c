@@ -21,6 +21,7 @@ Player *playerList;
 typedef struct UserBalance{
     int userID;
     int balance;
+    struct UserBalance *next;
 } UserBalance;
 UserBalance *balanceList;
 
@@ -42,14 +43,16 @@ void resetDeck();
 void runPoker();
 void addPlayer(int, int);
 int playerCount=0;
-void writePlayerData();
+UserBalance *getUserBalance(int);
+void readUserData();
+void writeUserData();
 
 int main(){
     dataFile = fopen("userData.bin","wb+");
     botKey = fopen("botKey.bin","rb");
     resetDeck();
     runPoker();
-    writePlayerData();
+    writeUserData();
 }
 
 void runPoker(){
@@ -92,15 +95,21 @@ void takeBets(){ //TODO: add ability for players to make bets
     int finished = 0;
     int newBet = 0;
     Player *currentPlayer = playerList;
-    UserBalance *currentBalance = balanceList;
     while (finished != 1){
         currentPlayer->bet += newBet;
-        currentBalance->balance -= newBet;
+        getUserBalance(currentPlayer->userID)->balance -= newBet;
         pokerPot += newBet;
     }
 }
 
-void addPlayer(int userID, int bet){
+void addPlayer(int userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players
+    if (getUserBalance(userID)==NULL){
+        UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
+        TempBalance->userID = userID;
+        TempBalance->balance = 1000;
+        TempBalance->next = balanceList;
+        balanceList = TempBalance;
+    }
     Player *TempElement = (Player *)malloc(sizeof(Player));
     TempElement->userID = userID;
     TempElement->bet = bet;
@@ -109,7 +118,7 @@ void addPlayer(int userID, int bet){
     playerCount += 1;
 }
 
-Card drawCard(){
+Card drawCard(){ //Draws one card from the deck and returns the struct
     int cardIndex = getRand()%(cardsLeft);
     Card picked = Deck[cardIndex];
     for (int i=cardIndex+1;i<cardsLeft;i++){
@@ -119,27 +128,44 @@ Card drawCard(){
     return picked;
 }
 
-int getRand(){
+int getRand(){ //Generates a random int based off the current time
     srand((unsigned int)time(NULL));
     return rand();
 }
 
-void resetDeck(){
+void resetDeck(){ //Returns all the cards to the deck
     memcpy(Deck, baseDeck, sizeof(Deck));
 }
 
-void checkPokerWinner(){
+void checkPokerWinner(){ //Checks to see which player has the best hand
     //TODO: check for player with winning hand
 }
 
-void writePlayerData(){
-    Player *currentPlayer = playerList;
-    while (currentPlayer != NULL){
-        printf("\n%d, %d, ", currentPlayer->bet, currentPlayer->userID);
-        printf("%d, %c, ", currentPlayer->card1.number, currentPlayer->card1.suite);
-        printf("%d, %c\n", currentPlayer->card2.number, currentPlayer->card2.suite);
-        fwrite(currentPlayer->userID,sizeof(currentPlayer->bet),1,dataFile);
-        fwrite();
-        currentPlayer = currentPlayer->next;
+UserBalance *getUserBalance(int userID){ //Gets given user's balance
+    UserBalance *currentBalance = balanceList;
+    while (currentBalance != NULL){
+        if (currentBalance->userID == userID){
+            return currentBalance;
+        }
+        currentBalance = currentBalance->next;
+    }
+    return NULL;
+}
+
+void readUserData(){
+    UserBalance *currentBalance;
+    while (fread(currentBalance, sizeof(UserBalance), 1, dataFile)==1){
+        printf("\n%d, %d, ", currentBalance->userID, currentBalance->balance);
+        currentBalance->next = balanceList;
+        balanceList = currentBalance;
+    }
+}
+
+void writeUserData(){
+    UserBalance *currentBalance = balanceList;
+    while (currentBalance != NULL){
+        printf("\n%d, %d, ", currentBalance->userID, currentBalance->balance);
+        fwrite(currentBalance,sizeof(currentBalance),1,dataFile);
+        currentBalance = currentBalance->next;
     }
 }
