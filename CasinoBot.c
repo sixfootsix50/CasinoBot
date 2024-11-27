@@ -18,6 +18,11 @@ typedef struct Player{
 } Player;
 Player *playerList;
 
+typedef struct UserBalance{
+    int userID;
+    int balance;
+} UserBalance;
+
 FILE *dataFile;
 FILE *botKey;
 
@@ -35,19 +40,20 @@ Card drawCard();
 void resetDeck();
 void runPoker();
 void addPlayer(int, int);
-int playerCount;
+int playerCount=0;
+void writePlayerData();
 
 int main(){
     dataFile = fopen("userData.bin","wb+");
     botKey = fopen("botKey.bin","rb");
     resetDeck();
     runPoker();
+    writePlayerData();
 }
 
 void runPoker(){
     pokerPot = 0;
     printf("How many players?");
-    scanf("%d",&playerCount);
     addPlayer(1,50);
     addPlayer(2,70);
     addPlayer(3,30);
@@ -85,7 +91,9 @@ void takeBets(){ //TODO: add ability for players to make bets
     int finished = 0;
     int newBet = 0;
     Player *currentPlayer = playerList;
+    UserBalance *currentBalance = balanceList;
     while (finished != 1){
+        if (newBet > currentPlayer->)
         currentPlayer->bet += newBet;
         pokerPot += newBet;
     }
@@ -121,4 +129,16 @@ void resetDeck(){
 
 void checkPokerWinner(){
     //TODO: check for player with winning hand
+}
+
+void writePlayerData(){
+    Player *currentPlayer = playerList;
+    while (currentPlayer != NULL){
+        printf("\n%d, %d, ", currentPlayer->bet, currentPlayer->userID);
+        printf("%d, %c, ", currentPlayer->card1.number, currentPlayer->card1.suite);
+        printf("%d, %c\n", currentPlayer->card2.number, currentPlayer->card2.suite);
+        fwrite(currentPlayer->userID,sizeof(currentPlayer->bet),1,dataFile);
+        fwrite();
+        currentPlayer = currentPlayer->next;
+    }
 }
