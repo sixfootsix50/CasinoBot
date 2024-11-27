@@ -22,6 +22,7 @@ typedef struct UserBalance{
     int userID;
     int balance;
 } UserBalance;
+UserBalance *balanceList;
 
 FILE *dataFile;
 FILE *botKey;
@@ -93,8 +94,8 @@ void takeBets(){ //TODO: add ability for players to make bets
     Player *currentPlayer = playerList;
     UserBalance *currentBalance = balanceList;
     while (finished != 1){
-        if (newBet > currentPlayer->)
         currentPlayer->bet += newBet;
+        currentBalance->balance -= newBet;
         pokerPot += newBet;
     }
 }
