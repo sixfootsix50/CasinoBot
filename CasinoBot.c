@@ -54,12 +54,24 @@ void readUserData();
 void writeUserData();
 void getBotKey();
 
+u64snowflake g_app_id;
+
 int main(){
     readUserData();
     getBotKey();
 
     ccord_global_init();
     struct discord *client = discord_init(botKey);
+
+    struct discord_create_global_application_command params = {
+        .name = "Poker",
+        .description = "Play a game of Poker",
+        .default_permission = true,
+        .type=1
+    };
+
+    discord_create_global_application_command(client, g_app_id,&params);
+
     discord_run(client);
 
     resetDeck();
@@ -72,8 +84,8 @@ int main(){
 }
 
 void runPoker(){
+    resetDeck();
     pokerPot = 0;
-    printf("How many players?");
     addPlayer(1,50);
     addPlayer(2,70);
     addPlayer(3,30);
