@@ -54,6 +54,8 @@ void readUserData();
 void writeUserData();
 void getBotKey();
 
+void runPokerCommand(struct discord *client, const struct discord_message *event);
+
 u64snowflake g_app_id;
 
 int main(){
@@ -63,14 +65,7 @@ int main(){
     ccord_global_init();
     struct discord *client = discord_init(botKey);
 
-    struct discord_create_global_application_command params = {
-        .name = "Poker",
-        .description = "Play a game of Poker",
-        .default_permission = true,
-        .type=1
-    };
-
-    discord_create_global_application_command(client, g_app_id,&params);
+    discord_set_on_command(client, "!poker", &runPokerCommand);
 
     discord_run(client);
 
@@ -81,6 +76,15 @@ int main(){
 
     discord_cleanup(client);
     ccord_global_cleanup();
+}
+
+void runPokerCommand(struct discord *client, const struct discord_message *event){
+    struct discord_create_message params = {.content = "Hello"};
+    discord_create_message(client,event->channel_id,&params,NULL);
+}
+
+void on_ready(struct discord *client, const struct discord_ready *event){
+    g_app_id = event->application->id;
 }
 
 void runPoker(){
