@@ -57,16 +57,18 @@ void getBotKey();
 int main(){
     readUserData();
     getBotKey();
-    printf("%s",botKey);
-    return;
 
     ccord_global_init();
     struct discord *client = discord_init(botKey);
+    discord_run(client);
 
     resetDeck();
     runPoker();
     writeUserData();
     readUserData();
+
+    discord_cleanup(client);
+    ccord_global_cleanup();
 }
 
 void runPoker(){
@@ -193,11 +195,11 @@ void writeUserData(){
 }
 
 void getBotKey(){
-    botKeyFile = fopen("botKey.bin","r");
+    botKeyFile = fopen("botKey.txt","r");
     fseek(botKeyFile,0,SEEK_END);
-    int keyLength = ftell(botKeyFile);
+    int keyLength = ftell(botKeyFile)+1;
     fseek(botKeyFile,0,SEEK_SET);
     botKey=malloc(keyLength);
-    fread(botKey,1,keyLength,botKeyFile);
+    fgets(botKey,keyLength,botKeyFile);
     fclose(botKeyFile);
 }
