@@ -50,11 +50,11 @@ void readUserData();
 void writeUserData();
 
 int main(){
-    dataFile = fopen("userData.bin","wb+");
     botKey = fopen("botKey.bin","rb");
     resetDeck();
     runPoker();
     writeUserData();
+    readUserData();
 }
 
 void runPoker(){
@@ -94,6 +94,7 @@ void runPoker(){
 }
 
 void takeBets(){ //TODO: add ability for players to make bets
+    return;
     int finished = 0;
     int newBet = 0;
     Player *currentPlayer = playerList;
@@ -141,6 +142,7 @@ void resetDeck(){ //Returns all the cards to the deck
 
 void checkPokerWinner(){ //Checks to see which player has the best hand
     //TODO: check for player with winning hand
+    return;
 }
 
 UserBalance *getUserBalance(int userID){ //Gets given user's balance
@@ -155,19 +157,25 @@ UserBalance *getUserBalance(int userID){ //Gets given user's balance
 }
 
 void readUserData(){
+    dataFile = fopen("userData.bin","rb");
+    printf("\nReading user data\n");
     UserBalance *currentBalance;
-    while (fread(currentBalance, sizeof(UserBalance), 1, dataFile)==1){
-        printf("\n%d, %d, ", currentBalance->userID, currentBalance->balance);
+    while (fread(&currentBalance,sizeof(UserBalance),1,dataFile)==1){
+        printf("\nUID: %d, Balance: %d, ", currentBalance->userID, currentBalance->balance);
         currentBalance->next = balanceList;
         balanceList = currentBalance;
     }
+    fclose(dataFile);
 }
 
 void writeUserData(){
+    dataFile = fopen("userData.bin","wb");
     UserBalance *currentBalance = balanceList;
     while (currentBalance != NULL){
         printf("\n%d, %d, ", currentBalance->userID, currentBalance->balance);
-        fwrite(currentBalance,sizeof(currentBalance),1,dataFile);
+        fwrite(&currentBalance,sizeof(UserBalance),1,dataFile);
         currentBalance = currentBalance->next;
     }
+    printf("\nWriting complete\n");
+    fclose(dataFile);
 }
