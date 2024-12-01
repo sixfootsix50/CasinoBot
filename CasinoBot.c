@@ -10,7 +10,7 @@ typedef struct Card{
 } Card;
 
 typedef struct Player{
-    int userID;
+    u64snowflake userID;
     int bet;
     Card card1;
     Card card2;
@@ -19,7 +19,7 @@ typedef struct Player{
 Player *playerList;
 
 typedef struct UserBalance{
-    int userID;
+    u64snowflake userID;
     int balance;
     struct UserBalance *next;
 } UserBalance;
@@ -35,8 +35,9 @@ Card baseDeck[52] = {{1,"hearts"},{2,"hearts"},{3,"hearts"},{4,"hearts"},{5,"hea
     {1,"spades"},{2,"spades"},{3,"spades"},{4,"spades"},{5,"spades"},{6,"spades"},{7,"spades"},{8,"spades"},{9,"spades"},{10,"spades"},{11,"spades"},{12,"spades"},{13,"spades"}};
 Card Deck[52];
 Card pokerRiver[5];
+Card dealerHand[11];
 int cardsLeft=52;
-int pokerPot;
+int currentPot;
 
 int getRand();
 Card drawCard();
@@ -46,41 +47,54 @@ void takeBets();
 void runPoker();
 void checkPokerWinner();
 
-void addPlayer(int, int);
+void addPlayer(u64snowflake, int);
 int playerCount=0;
-UserBalance *getUserBalance(int);
+UserBalance *getUserBalance(u64snowflake);
 
 void readUserData();
 void writeUserData();
 void getBotKey();
 
-void runPokerCommand(struct discord *client, const struct discord_message *event);
+void runBJCommand(struct discord *client, const struct discord_message *event);
 
 u64snowflake g_app_id;
 
 int main(){
     readUserData();
+    resetDeck();
     getBotKey();
 
     ccord_global_init();
     struct discord *client = discord_init(botKey);
 
-    discord_set_on_command(client, "!poker", &runPokerCommand);
+    discord_set_on_command(client, "!blackj", &runBJCommand);
 
     discord_run(client);
-
-    resetDeck();
-    runPoker();
-    writeUserData();
-    readUserData();
 
     discord_cleanup(client);
     ccord_global_cleanup();
 }
 
-void runPokerCommand(struct discord *client, const struct discord_message *event){
-    char[256] text;
-    snprintf(":clubs:77, :%s:%d, :%s:%d",baseDeck[1]->suite,baseDeck[1]->number,baseDeck[3]->suite,baseDeck[3]->number);
+void runBJCommand(struct discord *client, const struct discord_message *event){
+    discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
+    resetDeck();
+    addPlayer(event->author->id,50);
+    addPlayer(event->author->id,50);
+    addPlayer(event->author->id,50);
+    addPlayer(event->author->id,50);
+    Player *currentPlayer = playerList;
+    while (currentPlayer != NULL){
+        currentPlayer->card1 = drawCard();
+        currentPlayer->card2 = drawCard();
+        char text[256];
+        snprintf(text,256,"%lu: $%d, :%s:%d, :%s:%d",currentPlayer->userID, currentPlayer->bet, currentPlayer->card1.suite, currentPlayer->card1.number, currentPlayer->card2.suite, currentPlayer->card2.number);
+        struct discord_create_message params = {.content = text};
+        discord_create_message(client,event->channel_id,&params,NULL);
+        currentPlayer = currentPlayer->next;
+    }
+    dealerHand[0] = drawCard();
+    char text[256];
+    snprintf(text,256,"Dealer: :%s:%d",dealerHand[0].suite,dealerHand[0].number);
     struct discord_create_message params = {.content = text};
     discord_create_message(client,event->channel_id,&params,NULL);
 }
@@ -91,35 +105,35 @@ void on_ready(struct discord *client, const struct discord_ready *event){
 
 void runPoker(){
     resetDeck();
-    pokerPot = 0;
+    currentPot = 0;
     addPlayer(1,50);
     addPlayer(2,70);
     addPlayer(3,30);
     addPlayer(4,10000);
     Player *currentPlayer = playerList;
     while (currentPlayer != NULL){
-        printf("\n%d, %d, ", currentPlayer->bet, currentPlayer->userID);
+        printf("\n%d, %lu, ", currentPlayer->bet, currentPlayer->userID);
         currentPlayer->card1 = drawCard();
         currentPlayer->card2 = drawCard();
-        printf("%d, %c, ", currentPlayer->card1.number, currentPlayer->card1.suite);
-        printf("%d, %c\n", currentPlayer->card2.number, currentPlayer->card2.suite);
+        printf("%d, %s, ", currentPlayer->card1.number, currentPlayer->card1.suite);
+        printf("%d, %s\n", currentPlayer->card2.number, currentPlayer->card2.suite);
         currentPlayer = currentPlayer->next;
     }
     takeBets();
     pokerRiver[0] = drawCard();
     pokerRiver[1] = drawCard();
     pokerRiver[2] = drawCard();
-    printf("%d, %c, ", pokerRiver[0].number, pokerRiver[0].suite);
-    printf("%d, %c, ", pokerRiver[1].number, pokerRiver[1].suite);
-    printf("%d, %c\n", pokerRiver[2].number, pokerRiver[2].suite);
+    printf("%d, %s, ", pokerRiver[0].number, pokerRiver[0].suite);
+    printf("%d, %s, ", pokerRiver[1].number, pokerRiver[1].suite);
+    printf("%d, %s\n", pokerRiver[2].number, pokerRiver[2].suite);
 
     takeBets();
     pokerRiver[3] = drawCard();
-    printf("%d, %c\n", pokerRiver[3].number, pokerRiver[3].suite);
+    printf("%d, %s\n", pokerRiver[3].number, pokerRiver[3].suite);
 
     takeBets();
     pokerRiver[4] = drawCard();
-    printf("%d, %c\n", pokerRiver[4].number, pokerRiver[4].suite);
+    printf("%d, %s\n", pokerRiver[4].number, pokerRiver[4].suite);
 
     takeBets();
     checkPokerWinner();
@@ -133,11 +147,11 @@ void takeBets(){ //TODO: add ability for players to make bets
     while (finished != 1){
         currentPlayer->bet += newBet;
         getUserBalance(currentPlayer->userID)->balance -= newBet;
-        pokerPot += newBet;
+        currentPot += newBet;
     }
 }
 
-void addPlayer(int userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players
+void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players
     if (getUserBalance(userID)==NULL){
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
         TempBalance->userID = userID;
@@ -177,7 +191,7 @@ void checkPokerWinner(){ //Checks to see which player has the best hand
     return;
 }
 
-UserBalance *getUserBalance(int userID){ //Gets given user's balance
+UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
     UserBalance *currentBalance = balanceList;
     while (currentBalance != NULL){
         if (currentBalance->userID == userID){
@@ -193,7 +207,7 @@ void readUserData(){
     printf("\nReading user data\n");
     UserBalance *currentBalance;
     while (fread(&currentBalance,sizeof(UserBalance),1,dataFile)==1){
-        printf("\nUID: %d, Balance: %d, ", currentBalance->userID, currentBalance->balance);
+        printf("\nUID: %lu, Balance: %d, ", currentBalance->userID, currentBalance->balance);
         currentBalance->next = balanceList;
         balanceList = currentBalance;
     }
@@ -204,7 +218,7 @@ void writeUserData(){
     dataFile = fopen("userData.bin","wb");
     UserBalance *currentBalance = balanceList;
     while (currentBalance != NULL){
-        printf("\n%d, %d, ", currentBalance->userID, currentBalance->balance);
+        printf("\n%lu, %d, ", currentBalance->userID, currentBalance->balance);
         fwrite(&currentBalance,sizeof(UserBalance),1,dataFile);
         currentBalance = currentBalance->next;
     }
