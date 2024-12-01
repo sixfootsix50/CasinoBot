@@ -6,7 +6,7 @@
 
 typedef struct Card{
     int number; // 1 is ace, 11 jack, 12 queen, 13 king
-    char suite; //d, s, h, c
+    char *suite; //d, s, h, c
 } Card;
 
 typedef struct Player{
@@ -29,10 +29,10 @@ FILE *dataFile;
 FILE *botKeyFile;
 char *botKey;
 
-Card baseDeck[52] = {{1,'h'},{2,'h'},{3,'h'},{4,'h'},{5,'h'},{6,'h'},{7,'h'},{8,'h'},{9,'h'},{10,'h'},{11,'h'},{12,'h'},{13,'h'},
-    {1,'d'},{2,'d'},{3,'d'},{4,'d'},{5,'d'},{6,'d'},{7,'d'},{8,'d'},{9,'d'},{10,'d'},{11,'d'},{12,'d'},{13,'d'},
-    {1,'c'},{2,'c'},{3,'c'},{4,'c'},{5,'c'},{6,'c'},{7,'c'},{8,'c'},{9,'c'},{10,'c'},{11,'c'},{12,'c'},{13,'c'},
-    {1,'s'},{2,'s'},{3,'s'},{4,'s'},{5,'s'},{6,'s'},{7,'s'},{8,'s'},{9,'s'},{10,'s'},{11,'s'},{12,'s'},{13,'s'}};
+Card baseDeck[52] = {{1,"hearts"},{2,"hearts"},{3,"hearts"},{4,"hearts"},{5,"hearts"},{6,"hearts"},{7,"hearts"},{8,"hearts"},{9,"hearts"},{10,"hearts"},{11,"hearts"},{12,"hearts"},{13,"hearts"},
+    {1,"diamonds"},{2,"diamonds"},{3,"diamonds"},{4,"diamonds"},{5,"diamonds"},{6,"diamonds"},{7,"diamonds"},{8,"diamonds"},{9,"diamonds"},{10,"diamonds"},{11,"diamonds"},{12,"diamonds"},{13,"diamonds"},
+    {1,"clubs"},{2,"clubs"},{3,"clubs"},{4,"clubs"},{5,"clubs"},{6,"clubs"},{7,"clubs"},{8,"clubs"},{9,"clubs"},{10,"clubs"},{11,"clubs"},{12,"clubs"},{13,"clubs"},
+    {1,"spades"},{2,"spades"},{3,"spades"},{4,"spades"},{5,"spades"},{6,"spades"},{7,"spades"},{8,"spades"},{9,"spades"},{10,"spades"},{11,"spades"},{12,"spades"},{13,"spades"}};
 Card Deck[52];
 Card pokerRiver[5];
 int cardsLeft=52;
@@ -79,7 +79,9 @@ int main(){
 }
 
 void runPokerCommand(struct discord *client, const struct discord_message *event){
-    struct discord_create_message params = {.content = "Hello"};
+    char[256] text;
+    snprintf(":clubs:77, :%s:%d, :%s:%d",baseDeck[1]->suite,baseDeck[1]->number,baseDeck[3]->suite,baseDeck[3]->number);
+    struct discord_create_message params = {.content = text};
     discord_create_message(client,event->channel_id,&params,NULL);
 }
 
