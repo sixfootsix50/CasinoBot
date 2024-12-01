@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-//#include <concord/discord.h>
+#include <concord/discord.h>
 
 typedef struct Card{
     int number; // 1 is ace, 11 jack, 12 queen, 13 king
@@ -26,7 +26,8 @@ typedef struct UserBalance{
 UserBalance *balanceList;
 
 FILE *dataFile;
-FILE *botKey;
+FILE *botKeyFile;
+char *botKey;
 
 Card baseDeck[52] = {{1,'h'},{2,'h'},{3,'h'},{4,'h'},{5,'h'},{6,'h'},{7,'h'},{8,'h'},{9,'h'},{10,'h'},{11,'h'},{12,'h'},{13,'h'},
     {1,'d'},{2,'d'},{3,'d'},{4,'d'},{5,'d'},{6,'d'},{7,'d'},{8,'d'},{9,'d'},{10,'d'},{11,'d'},{12,'d'},{13,'d'},
@@ -40,17 +41,28 @@ int pokerPot;
 int getRand();
 Card drawCard();
 void resetDeck();
+
 void takeBets();
 void runPoker();
 void checkPokerWinner();
+
 void addPlayer(int, int);
 int playerCount=0;
 UserBalance *getUserBalance(int);
+
 void readUserData();
 void writeUserData();
+void getBotKey();
 
 int main(){
-    botKey = fopen("botKey.bin","rb");
+    readUserData();
+    getBotKey();
+    printf("%s",botKey);
+    return;
+
+    ccord_global_init();
+    struct discord *client = discord_init(botKey);
+
     resetDeck();
     runPoker();
     writeUserData();
@@ -178,4 +190,14 @@ void writeUserData(){
     }
     printf("\nWriting complete\n");
     fclose(dataFile);
+}
+
+void getBotKey(){
+    botKeyFile = fopen("botKey.bin","r");
+    fseek(botKeyFile,0,SEEK_END);
+    int keyLength = ftell(botKeyFile);
+    fseek(botKeyFile,0,SEEK_SET);
+    botKey=malloc(keyLength);
+    fread(botKey,1,keyLength,botKeyFile);
+    fclose(botKeyFile);
 }
