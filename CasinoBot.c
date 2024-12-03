@@ -3,6 +3,7 @@
 #include <time.h>
 #include <string.h>
 #include <concord/discord.h>
+#include <inttypes.h> //SCNu64
 
 typedef struct Card{
     int number; // 1 is ace, 11 jack, 12 queen, 13 king
@@ -12,18 +13,17 @@ typedef struct Card{
 typedef struct Player{
     u64snowflake userID;
     int bet;
-    Card card1;
-    Card card2;
+    Card pokerCard1;
+    Card pokerCard2;
+    Card bjHand[11];
     struct Player *next;
 } Player;
-Player *playerList;
 
 typedef struct UserBalance{
     u64snowflake userID;
     int balance;
     struct UserBalance *next;
 } UserBalance;
-UserBalance *balanceList;
 
 FILE *dataFile;
 FILE *botKeyFile;
@@ -43,21 +43,23 @@ int getRand();
 Card drawCard();
 void resetDeck();
 
-void takeBets();
-void runPoker();
+int gameRunning = 0; //Indicates if another game is currently running, and which type. 1: black jack, 2: poker
+int takingBets = 0; //Indicates when the game is waiting for players to bet
+void runBetCommand(struct discord *client, const struct discord_message *event);
+void runPokerCommand(struct discord *client, const struct discord_message *event);
+void runBJCommand(struct discord *client, const struct discord_message *event);
+void runJoinCommand(struct discord *client, const struct discord_message *event);
 void checkPokerWinner();
 
 void addPlayer(u64snowflake, int);
-int playerCount=0;
+Player *PlayerList;
+int PlayerCount=0;
+UserBalance *balanceList;
 UserBalance *getUserBalance(u64snowflake);
 
 void readUserData();
 void writeUserData();
 void getBotKey();
-
-void runBJCommand(struct discord *client, const struct discord_message *event);
-
-u64snowflake g_app_id;
 
 int main(){
     readUserData();
@@ -67,7 +69,10 @@ int main(){
     ccord_global_init();
     struct discord *client = discord_init(botKey);
 
-    discord_set_on_command(client, "!blackj", &runBJCommand);
+    discord_set_on_command(client, "!startblackj", &runBJCommand);
+    discord_set_on_command(client, "!startpoker", &runPokerCommand);
+    discord_set_on_command(client, "!join", &runJoinCommand);
+    discord_set_on_command(client, "!bet", &runBetCommand);
 
     discord_run(client);
 
@@ -75,19 +80,23 @@ int main(){
     ccord_global_cleanup();
 }
 
+void runJoinCommand(struct discord *client, const struct discord_message *event){
+    discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
+    addPlayer(event->author->id,0);
+}
+
 void runBJCommand(struct discord *client, const struct discord_message *event){
     discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
-    resetDeck();
-    addPlayer(event->author->id,50);
-    addPlayer(event->author->id,50);
-    addPlayer(event->author->id,50);
-    addPlayer(event->author->id,50);
-    Player *currentPlayer = playerList;
+    resetDeck();//TODO: Wipe Dealer hand
+    gameRunning = 1;
+    currentPot=0;
+    Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
-        currentPlayer->card1 = drawCard();
-        currentPlayer->card2 = drawCard();
+        currentPlayer->bjHand[0] = drawCard();
+        currentPlayer->bjHand[1] = drawCard();
         char text[256];
-        snprintf(text,256,"%lu: $%d, :%s:%d, :%s:%d",currentPlayer->userID, currentPlayer->bet, currentPlayer->card1.suite, currentPlayer->card1.number, currentPlayer->card2.suite, currentPlayer->card2.number);
+        snprintf(text,256,"%lu: $%d, ",currentPlayer->userID, currentPlayer->bet);
+        snprintf(text,256,":%s:%d",currentPlayer->bjhand[0].suite, currentPlayer->bjHand[0].number);
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
         currentPlayer = currentPlayer->next;
@@ -99,27 +108,21 @@ void runBJCommand(struct discord *client, const struct discord_message *event){
     discord_create_message(client,event->channel_id,&params,NULL);
 }
 
-void on_ready(struct discord *client, const struct discord_ready *event){
-    g_app_id = event->application->id;
-}
-
-void runPoker(){
+void runPokerCommand(struct discord *client, const struct discord_message *event){
+    discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
     resetDeck();
+    gameRunning = 2;
     currentPot = 0;
-    addPlayer(1,50);
-    addPlayer(2,70);
-    addPlayer(3,30);
-    addPlayer(4,10000);
-    Player *currentPlayer = playerList;
+    Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         printf("\n%d, %lu, ", currentPlayer->bet, currentPlayer->userID);
-        currentPlayer->card1 = drawCard();
-        currentPlayer->card2 = drawCard();
-        printf("%d, %s, ", currentPlayer->card1.number, currentPlayer->card1.suite);
-        printf("%d, %s\n", currentPlayer->card2.number, currentPlayer->card2.suite);
+        currentPlayer->pokerCard1 = drawCard();
+        currentPlayer->pokerCard2 = drawCard();
+        printf("%d, %s, ", currentPlayer->pokerCard1.number, currentPlayer->pokerCard1.suite);
+        printf("%d, %s\n", currentPlayer->pokerCard2.number, currentPlayer->pokerCard2.suite);
         currentPlayer = currentPlayer->next;
     }
-    takeBets();
+    runBetCommand();
     pokerRiver[0] = drawCard();
     pokerRiver[1] = drawCard();
     pokerRiver[2] = drawCard();
@@ -127,31 +130,38 @@ void runPoker(){
     printf("%d, %s, ", pokerRiver[1].number, pokerRiver[1].suite);
     printf("%d, %s\n", pokerRiver[2].number, pokerRiver[2].suite);
 
-    takeBets();
+    runBetCommand();
     pokerRiver[3] = drawCard();
     printf("%d, %s\n", pokerRiver[3].number, pokerRiver[3].suite);
 
-    takeBets();
+    runBetCommand();
     pokerRiver[4] = drawCard();
     printf("%d, %s\n", pokerRiver[4].number, pokerRiver[4].suite);
 
-    takeBets();
+    runBetCommand();
     checkPokerWinner();
 }
 
-void takeBets(){ //TODO: add ability for players to make bets
-    return;
-    int finished = 0;
+void runBetCommand(struct discord *client, const struct discord_message *event){ //TODO: add ability for players to make bets
     int newBet = 0;
-    Player *currentPlayer = playerList;
-    while (finished != 1){
-        currentPlayer->bet += newBet;
-        getUserBalance(currentPlayer->userID)->balance -= newBet;
-        currentPot += newBet;
+    int finished = 0;
+    sscanf(event->content, "%" SCNu64, &newBet);
+    Player *currentPlayer = PlayerList;
+    while (currentPlayer != NULL){
+        if (currentPlayer->userID == event->author->id){
+            if (getUserBalance(event->author->id)->balance < newBet){
+                newBet = getUserBalance(event->author->id)->balance;
+            }
+            currentPlayer->bet += newBet;
+            getUserBalance(currentPlayer->userID)->balance -= newBet;
+            currentPot += newBet;
+        }
+        currentPlayer = currentPlayer->next;
     }
 }
 
-void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players
+void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players.
+    //Mode determines which game the user will be added to. Where 1=poker, 2=blackj, and 3=roulette.
     if (getUserBalance(userID)==NULL){
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
         TempBalance->userID = userID;
@@ -162,9 +172,9 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     Player *TempElement = (Player *)malloc(sizeof(Player));
     TempElement->userID = userID;
     TempElement->bet = bet;
-    TempElement->next = playerList;
-    playerList = TempElement;
-    playerCount += 1;
+    TempElement->next = PlayerList;
+    PlayerList = TempElement;
+    PlayerCount += 1;
 }
 
 Card drawCard(){ //Draws one card from the deck and returns the struct
