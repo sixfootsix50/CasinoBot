@@ -57,6 +57,7 @@ int PlayerCount=0;
 UserBalance *balanceList;
 UserBalance *getUserBalance(u64snowflake);
 
+void waitForBets();
 void readUserData();
 void writeUserData();
 void getBotKey();
@@ -96,7 +97,7 @@ void runBJCommand(struct discord *client, const struct discord_message *event){
         currentPlayer->bjHand[1] = drawCard();
         char text[256];
         snprintf(text,256,"%lu: $%d, ",currentPlayer->userID, currentPlayer->bet);
-        snprintf(text,256,":%s:%d",currentPlayer->bjhand[0].suite, currentPlayer->bjHand[0].number);
+        snprintf(text,256,":%s:%d",currentPlayer->bjHand[0].suite, currentPlayer->bjHand[0].number);
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
         currentPlayer = currentPlayer->next;
@@ -122,7 +123,7 @@ void runPokerCommand(struct discord *client, const struct discord_message *event
         printf("%d, %s\n", currentPlayer->pokerCard2.number, currentPlayer->pokerCard2.suite);
         currentPlayer = currentPlayer->next;
     }
-    runBetCommand();
+    waitForBets();
     pokerRiver[0] = drawCard();
     pokerRiver[1] = drawCard();
     pokerRiver[2] = drawCard();
@@ -130,15 +131,15 @@ void runPokerCommand(struct discord *client, const struct discord_message *event
     printf("%d, %s, ", pokerRiver[1].number, pokerRiver[1].suite);
     printf("%d, %s\n", pokerRiver[2].number, pokerRiver[2].suite);
 
-    runBetCommand();
+    waitForBets();
     pokerRiver[3] = drawCard();
     printf("%d, %s\n", pokerRiver[3].number, pokerRiver[3].suite);
 
-    runBetCommand();
+    waitForBets();
     pokerRiver[4] = drawCard();
     printf("%d, %s\n", pokerRiver[4].number, pokerRiver[4].suite);
 
-    runBetCommand();
+    waitForBets();
     checkPokerWinner();
 }
 
@@ -175,6 +176,10 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     TempElement->next = PlayerList;
     PlayerList = TempElement;
     PlayerCount += 1;
+}
+
+void waitForBets(){
+    return;
 }
 
 Card drawCard(){ //Draws one card from the deck and returns the struct
