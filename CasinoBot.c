@@ -98,6 +98,7 @@ void runBJCommand(struct discord *client, const struct discord_message *event){
         char text[256];
         snprintf(text,256,"%lu: $%d, ",currentPlayer->userID, currentPlayer->bet);
         snprintf(text,256,":%s:%d",currentPlayer->bjHand[0].suite, currentPlayer->bjHand[0].number);
+        snprintf(text,256,":%s:%d",currentPlayer->bjHand[1].suite, currentPlayer->bjHand[1].number);
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
         currentPlayer = currentPlayer->next;
@@ -146,7 +147,7 @@ void runPokerCommand(struct discord *client, const struct discord_message *event
 void runBetCommand(struct discord *client, const struct discord_message *event){ //TODO: add ability for players to make bets
     int newBet = 0;
     int finished = 0;
-    sscanf(event->content, "%" SCNu64, &newBet);
+    sscanf(event->content, "%d", &newBet);
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         if (currentPlayer->userID == event->author->id){
