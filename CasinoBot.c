@@ -97,8 +97,9 @@ void runBJCommand(struct discord *client, const struct discord_message *event){
         currentPlayer->bjHand[1] = drawCard();
         char text[256];
         snprintf(text,256,"%lu: $%d, ",currentPlayer->userID, currentPlayer->bet);
-        snprintf(text,256,":%s:%d",currentPlayer->bjHand[0].suite, currentPlayer->bjHand[0].number);
-        snprintf(text,256,":%s:%d",currentPlayer->bjHand[1].suite, currentPlayer->bjHand[1].number);
+        int len = strlen(text);
+        snprintf(text+len,(sizeof text) - len,":%s:%d",currentPlayer->bjHand[0].suite, currentPlayer->bjHand[0].number);
+        snprintf(text+len,(sizeof text) - len,":%s:%d",currentPlayer->bjHand[1].suite, currentPlayer->bjHand[1].number);
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
         currentPlayer = currentPlayer->next;
