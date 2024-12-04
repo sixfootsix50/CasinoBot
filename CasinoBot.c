@@ -48,7 +48,9 @@ int takingBets = 0; //Indicates when the game is waiting for players to bet
 void runBetCommand(struct discord *client, const struct discord_message *event);
 void runPokerCommand(struct discord *client, const struct discord_message *event);
 void runBJCommand(struct discord *client, const struct discord_message *event);
+void runHitCommand(struct discord *client, const struct discord_message *event);
 void runJoinCommand(struct discord *client, const struct discord_message *event);
+void displayPlayers(int);
 void checkPokerWinner();
 
 void addPlayer(u64snowflake, int);
@@ -95,21 +97,39 @@ void runBJCommand(struct discord *client, const struct discord_message *event){
     while (currentPlayer != NULL){
         currentPlayer->bjHand[0] = drawCard();
         currentPlayer->bjHand[1] = drawCard();
-        char text[256];
-        snprintf(text,256,"%lu>> $%d | ",currentPlayer->userID, currentPlayer->bet);
-        int len = strlen(text);
-        snprintf(text+len,(sizeof text) - len,":%s:%d, ",currentPlayer->bjHand[0].suite, currentPlayer->bjHand[0].number);
-        len = strlen(text);
-        snprintf(text+len,(sizeof text) - len,":%s:%d",currentPlayer->bjHand[1].suite, currentPlayer->bjHand[1].number);
-        struct discord_create_message params = {.content = text};
-        discord_create_message(client,event->channel_id,&params,NULL);
         currentPlayer = currentPlayer->next;
     }
+    displayPlayers(1);
     dealerHand[0] = drawCard();
     char text[256];
     snprintf(text,256,"Dealer: :%s:%d",dealerHand[0].suite,dealerHand[0].number);
     struct discord_create_message params = {.content = text};
     discord_create_message(client,event->channel_id,&params,NULL);
+}
+
+void displayPlayers(int mode){
+    Player *currentPlayer = PlayerList;
+    switch (mode){
+        case 1:
+        while (currentPlayer != NULL){
+            char text[256];
+            snprintf(text,256,"%lu | $%d",currentPlayer->userID, currentPlayer->bet);
+            int i = 0;
+            while (bjHand[i] != 0){
+                int len = strlen(text);
+                snprintf(text+len,(sizeof text) - len,", :%s:%d",currentPlayer->bjHand[i].suite, currentPlayer->bjHand[i].number);
+                i+=1;
+            }
+            struct discord_create_message params = {.content = text};
+            discord_create_message(client,event->channel_id,&params,NULL);
+            currentPlayer = currentPlayer->next;
+        }
+        break;
+    }
+}
+
+void runHitCommand(struct discord *client, const struct discord_message *event){
+    return;
 }
 
 void runPokerCommand(struct discord *client, const struct discord_message *event){
