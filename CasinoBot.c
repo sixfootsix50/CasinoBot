@@ -211,36 +211,6 @@ void runHitCommand(struct discord *client, const struct discord_message *event){
 }
 
 void checkBJWin(struct discord *client, const struct discord_message *event, int allStay){
-    if (readyCheck() == 1){
-        do {
-            char text[256];
-            //displayPlayers(client,event,1);
-            snprintf(text,256,"Dealer");
-            int handSize = 0;
-            for (int i=0; i<11;i++){
-                if (dealerHand[i].number == 0){
-                    if (handSize <= 17){
-                        dealerHand[i] = drawCard();
-                        int len = strlen(text);
-                        snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
-                    }
-                    else {
-                        allStay = 0;
-                    }
-                    break;
-                }
-                int len = strlen(text);
-                snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
-                handSize += dealerHand[i].number;
-            }
-            struct discord_create_message params = {.content = text};
-            discord_create_message(client,event->channel_id,&params,NULL);
-            if (handSize > 21){
-                displayPlayers(client,event,1);
-                return;
-            }
-        } while (allStay == 1);
-    } 
     int handSize = 0;
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
@@ -270,7 +240,71 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
         snprintf(text,256,"Dealer Wins!");
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
+        return;
     }
+    if (readyCheck() == 1){
+        int dealerHandSize = 0;
+        do {
+            char text[256];
+            snprintf(text,256,"Dealer");
+            for (int i=0; i<11;i++){
+                if (dealerHand[i].number == 0){
+                    if (dealerHandSize <= 17){
+                        dealerHand[i] = drawCard();
+                        int len = strlen(text);
+                        snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
+                    }
+                    // else {
+                    //     allStay = 0;
+                    // }
+                    break;
+                }
+                if (dealerHand[i].number > 10){
+                    dealerHandSize += 10;
+                }
+                else{
+                    dealerHandSize += dealerHand[i].number;
+                }
+                int len = strlen(text);
+                snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
+                dealerHandSize += dealerHand[i].number;
+            }
+
+            struct discord_create_message params = {.content = text};
+            discord_create_message(client,event->channel_id,&params,NULL);
+            if (dealerHandSize > 17){
+                break;
+            }
+            else if (dealerHandSize > 21){
+                displayPlayers(client,event,1);
+                //TODO add payouts
+                return;
+            }
+        } while (allStay == 1);
+        if (allStay == 1){
+            currentPlayer = PlayerList;
+            while (currentPlayer != NULL){
+                handSize = 0;
+                for (int i=0; i<11;i++){
+                   if (currentPlayer->bjHand[i].number == 0){
+                        break;
+                    }
+                    if (currentPlayer->bjHand[i].number > 10){
+                        handSize += 10;
+                    }
+                    else{
+                        handSize += currentPlayer->bjHand[i].number;
+                    }
+                }
+                if (handSize < dealerHandSize){
+                    removePlayer(currentPlayer->userID);
+                }
+                currentPlayer = currentPlayer->next;
+            }
+        //TODO: add logic to compare hands
+        }
+    } 
+    
 }
 
 void runPokerCommand(struct discord *client, const struct discord_message *event){
