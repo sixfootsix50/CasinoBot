@@ -4,7 +4,7 @@
 #include <string.h>
 #include <concord/discord.h>
 #include <unistd.h>
-#include <inttypes.h> //SCNu64
+// #include <inttypes.h> //SCNu64
 
 typedef struct Card{
     int number; // 1 is ace, 11 jack, 12 queen, 13 king
@@ -38,6 +38,7 @@ Card baseDeck[52] = {{1,"hearts"},{2,"hearts"},{3,"hearts"},{4,"hearts"},{5,"hea
     {1,"spades"},{2,"spades"},{3,"spades"},{4,"spades"},{5,"spades"},{6,"spades"},{7,"spades"},{8,"spades"},{9,"spades"},{10,"spades"},{11,"spades"},{12,"spades"},{13,"spades"}};
 Card Deck[52];
 Card pokerRiver[5];
+Card baseDealerHand[11];
 Card dealerHand[11];
 int cardsLeft=52;
 int currentPot;
@@ -49,7 +50,7 @@ void resetDeck();
 int gameRunning = 0; //Indicates if another game is currently running, and which type. 1: black jack, 2: poker
 int takingBets = 0; //Indicates when the game is waiting for players to bet
 void runBetCommand(struct discord *client, const struct discord_message *event);
-void runPokerCommand(struct discord *client, const struct discord_message *event);
+// void runPokerCommand(struct discord *client, const struct discord_message *event);
 void runBJCommand(struct discord *client, const struct discord_message *event);
 void runHitCommand(struct discord *client, const struct discord_message *event);
 void runStayCommand(struct discord *client, const struct discord_message *event);
@@ -80,7 +81,7 @@ int main(){
     struct discord *client = discord_init(botKey);
 
     discord_set_on_command(client, "!startblackj", &runBJCommand);
-    discord_set_on_command(client, "!startpoker", &runPokerCommand);
+    // discord_set_on_command(client, "!startpoker", &runPokerCommand);
     discord_set_on_command(client, "!join", &runJoinCommand);
     discord_set_on_command(client, "!bet", &runBetCommand);
     discord_set_on_command(client, "!hit", &runHitCommand);
@@ -211,6 +212,8 @@ void runHitCommand(struct discord *client, const struct discord_message *event){
 }
 
 void checkBJWin(struct discord *client, const struct discord_message *event, int allStay){
+    //Check each player's hand total
+    printf("\nAllStay: %d\n", allStay);
     int handSize = 0;
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
@@ -231,7 +234,7 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
         }
         currentPlayer = currentPlayer->next;
     }
-    if (PlayerCount <= 0){
+    if (PlayerCount <= 0){ //Ends game if no more players
         PlayerCount = 0;
         gameRunning = 0;
 
@@ -243,13 +246,16 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
         return;
     }
     if (readyCheck() == 1){
-        int dealerHandSize = 0;
+        int dealerHandSize;
         do {
+            dealerHandSize = 0;
+            printf("\nChecking dealer hand size\n");
             char text[256];
             snprintf(text,256,"Dealer");
             for (int i=0; i<11;i++){
                 if (dealerHand[i].number == 0){
                     if (dealerHandSize <= 17){
+                        printf("\nDealerHand: %d\n",dealerHandSize);
                         dealerHand[i] = drawCard();
                         int len = strlen(text);
                         snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
@@ -259,7 +265,7 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
                     // }
                     break;
                 }
-                if (dealerHand[i].number > 10){
+                else if (dealerHand[i].number > 10){
                     dealerHandSize += 10;
                 }
                 else{
@@ -267,7 +273,7 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
                 }
                 int len = strlen(text);
                 snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
-                dealerHandSize += dealerHand[i].number;
+                //dealerHandSize += dealerHand[i].number;
             }
 
             struct discord_create_message params = {.content = text};
@@ -276,20 +282,22 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
                 break;
             }
             else if (dealerHandSize > 21){
+                printf("\nPlayers win\n");
                 displayPlayers(client,event,1);
                 //TODO add payouts
                 return;
             }
         } while (allStay == 1);
+        printf("\nDone checking :%d\n",dealerHandSize);
         if (allStay == 1){
             currentPlayer = PlayerList;
             while (currentPlayer != NULL){
                 handSize = 0;
                 for (int i=0; i<11;i++){
-                   if (currentPlayer->bjHand[i].number == 0){
+                    if (currentPlayer->bjHand[i].number == 0){
                         break;
                     }
-                    if (currentPlayer->bjHand[i].number > 10){
+                    else if (currentPlayer->bjHand[i].number > 10){
                         handSize += 10;
                     }
                     else{
@@ -301,50 +309,19 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
                 }
                 currentPlayer = currentPlayer->next;
             }
+        displayPlayers(client, event, 1);
+        printf("Done checking wins");
         //TODO: add logic to compare hands
         }
     } 
     
 }
 
-void runPokerCommand(struct discord *client, const struct discord_message *event){
-    discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
-    resetDeck();
-    gameRunning = 2;
-    currentPot = 0;
-    Player *currentPlayer = PlayerList;
-    while (currentPlayer != NULL){
-        printf("\n%d, %lu, ", currentPlayer->bet, currentPlayer->userID);
-        currentPlayer->pokerCard1 = drawCard();
-        currentPlayer->pokerCard2 = drawCard();
-        printf("%d, %s, ", currentPlayer->pokerCard1.number, currentPlayer->pokerCard1.suite);
-        printf("%d, %s\n", currentPlayer->pokerCard2.number, currentPlayer->pokerCard2.suite);
-        currentPlayer = currentPlayer->next;
-    }
-    readyCheck();
-    pokerRiver[0] = drawCard();
-    pokerRiver[1] = drawCard();
-    pokerRiver[2] = drawCard();
-    printf("%d, %s, ", pokerRiver[0].number, pokerRiver[0].suite);
-    printf("%d, %s, ", pokerRiver[1].number, pokerRiver[1].suite);
-    printf("%d, %s\n", pokerRiver[2].number, pokerRiver[2].suite);
-
-    readyCheck();
-    pokerRiver[3] = drawCard();
-    printf("%d, %s\n", pokerRiver[3].number, pokerRiver[3].suite);
-
-    readyCheck();
-    pokerRiver[4] = drawCard();
-    printf("%d, %s\n", pokerRiver[4].number, pokerRiver[4].suite);
-
-    readyCheck();
-    checkPokerWinner();
-}
-
 void runBetCommand(struct discord *client, const struct discord_message *event){ //TODO: add ability for players to make bets
     int newBet = 0;
     int finished = 0;
     sscanf(event->content, "%d", &newBet);
+    readUserData();
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         if (currentPlayer->userID == event->author->id){
@@ -357,10 +334,12 @@ void runBetCommand(struct discord *client, const struct discord_message *event){
         }
         currentPlayer = currentPlayer->next;
     }
+    writeUserData();
     displayPlayers(client,event,0);
 }
 
 void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players.
+    readUserData();
     //Mode determines which game the user will be added to. Where 1=poker, 2=blackj, and 3=roulette.
     if (getUserBalance(userID)==NULL){
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
@@ -376,6 +355,7 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     TempElement->next = PlayerList;
     PlayerList = TempElement;
     PlayerCount += 1;
+    writeUserData();
 }
 
 Player *getPlayer(u64snowflake userID){
@@ -429,6 +409,7 @@ int getRand(){ //Generates a random int based off the current time
 
 void resetDeck(){ //Returns all the cards to the deck
     memcpy(Deck, baseDeck, sizeof(Deck));
+    //memcpy(dealerHand, baseDealerHand, sizeof(dealerHand));
 }
 
 void checkPokerWinner(){ //Checks to see which player has the best hand
@@ -449,12 +430,18 @@ UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
 
 void readUserData(){
     dataFile = fopen("userData.bin","rb");
+    balanceList = NULL;
     printf("\nReading user data\n");
-    UserBalance *currentBalance;
+    UserBalance currentBalance;
     while (fread(&currentBalance,sizeof(UserBalance),1,dataFile)==1){
-        printf("\nUID: %lu, Balance: %d, ", currentBalance->userID, currentBalance->balance);
-        currentBalance->next = balanceList;
-        balanceList = currentBalance;
+        printf("\nUID: %lu, Balance: %d, ", currentBalance.userID, currentBalance.balance);
+        UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
+        TempBalance->userID = currentBalance.userID;
+        TempBalance->balance = currentBalance.balance;
+        TempBalance->next = balanceList;
+        balanceList = TempBalance;
+        // currentBalance->next = balanceList;
+        // balanceList = currentBalance;
     }
     fclose(dataFile);
 }
