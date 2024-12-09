@@ -57,11 +57,13 @@ void runStayCommand(struct discord *client, const struct discord_message *event)
 void checkBJWin(struct discord *client, const struct discord_message *event, int);
 void runJoinCommand(struct discord *client, const struct discord_message *event);
 void displayPlayers(struct discord *client, const struct discord_message *event);
-void checkPokerWinner();
+void displayBalances(struct discord *client, const struct discord_message *event);
+void continueBJ(struct discord *client, const struct discord_message *event, int);
 
 void addPlayer(u64snowflake, int);
 Player *getPlayer(u64snowflake);
 void removePlayer(u64snowflake);
+void payout(int);
 Player *PlayerList;
 int PlayerCount=0;
 UserBalance *balanceList;
@@ -99,10 +101,10 @@ void runJoinCommand(struct discord *client, const struct discord_message *event)
 }
 
 void runBJCommand(struct discord *client, const struct discord_message *event){
-    discord_delete_message(client,event->channel_id,event->id,NULL,NULL);
     resetDeck();//TODO: Wipe Dealer hand
     gameRunning = 1;
     currentPot=0;
+    memcpy(dealerHand, baseDealerHand, sizeof(baseDealerHand));
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         currentPlayer->bjHand[0] = drawCard();
@@ -169,6 +171,18 @@ void displayPlayers(struct discord *client, const struct discord_message *event)
     }
 }
 
+void displayBalances(struct discord *client, const struct discord_message *event){
+    UserBalance *currentBalance = balanceList;
+    while (currentBalance != NULL){
+        char text[256];
+        int len;
+        snprintf(text,256,"%lu | $%d",currentBalance->userID, currentBalance->balance);
+        struct discord_create_message params = {.content = text};
+        discord_create_message(client,event->channel_id,&params,NULL);
+        currentBalance = currentBalance->next;
+    }
+}
+
 void runStayCommand(struct discord *client, const struct discord_message *event){
     if (gameRunning != 1){
         return;
@@ -177,14 +191,15 @@ void runStayCommand(struct discord *client, const struct discord_message *event)
     stayPlayer->bJStay = 1;
     stayPlayer->ready = 1;
     int allStay = 1;
-    Player *currentPlayer = PlayerList;
-    while (currentPlayer != NULL){
-        if (currentPlayer->bJStay == 0){
+    stayPlayer = PlayerList;
+    while (stayPlayer != NULL){
+        if (stayPlayer->bJStay == 0){
             allStay = 0;
         }
-        currentPlayer = currentPlayer->next;
+        stayPlayer = stayPlayer->next;
     }
-    checkBJWin(client,event,allStay);
+    printf("Done");
+    continueBJ(client,event,allStay);
 }
 
 void runHitCommand(struct discord *client, const struct discord_message *event){
@@ -202,10 +217,10 @@ void runHitCommand(struct discord *client, const struct discord_message *event){
         hitPlayer->ready = 1;
         displayPlayers(client, event);
         if (hitPlayer->bjHandCount > 21){
-            removePlayer(currentPlayer->userID);
+            removePlayer(hitPlayer->userID);
         }
     }
-    checkBJWin(client,event,0);
+    continueBJ(client,event,0);
 }
 
 void continueBJ(struct discord *client, const struct discord_message *event, int allStay){
@@ -263,13 +278,16 @@ void checkBJWin(struct discord *client, const struct discord_message *event, int
             Player *currentNext;
             while (currentPlayer != NULL){
                 currentNext = currentPlayer->next;
-                if (currentPlayer->handSize < dealerHandCount){
+                if (currentPlayer->bjHandCount < dealerHandCount){
                     removePlayer(currentPlayer->userID);
                 }
                 currentPlayer = currentNext;
             }
         displayPlayers(client, event);
         printf("Done checking wins");
+        displayBalances(client, event);
+        payout(2);
+        displayBalances(client, event);
         //TODO: add logic to compare hands
         }
     } 
@@ -279,7 +297,7 @@ void runBetCommand(struct discord *client, const struct discord_message *event){
     int newBet = 0;
     int finished = 0;
     sscanf(event->content, "%d", &newBet);
-    readUserData();
+    //readUserData();
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         if (currentPlayer->userID == event->author->id){
@@ -292,12 +310,12 @@ void runBetCommand(struct discord *client, const struct discord_message *event){
         }
         currentPlayer = currentPlayer->next;
     }
-    writeUserData();
+    //writeUserData();
     displayPlayers(client,event);
 }
 
 void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players.
-    readUserData();
+    //readUserData();
     //Mode determines which game the user will be added to. Where 1=poker, 2=blackj, and 3=roulette.
     if (getUserBalance(userID)==NULL){
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
@@ -310,10 +328,12 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     TempElement->userID = userID;
     TempElement->bet = bet;
     TempElement->ready = 0;
+    TempElement->bjHandCount = 0;
+    memcpy(TempElement->bjHand,baseDealerHand, sizeof baseDealerHand);
     TempElement->next = PlayerList;
     PlayerList = TempElement;
     PlayerCount += 1;
-    writeUserData();
+    //writeUserData();
 }
 
 Player *getPlayer(u64snowflake userID){
@@ -350,6 +370,16 @@ int readyCheck(){
     return 0;
 }
 
+void payout(int multiplier){
+    Player *currentPlayer = PlayerList;
+    Player *nextPlayer;    
+    while (currentPlayer != NULL){
+        getUserBalance(currentPlayer->userID)->balance = currentPlayer->bet*multiplier;
+        nextPlayer = currentPlayer->next;
+        removePlayer(currentPlayer->userID);
+    }
+}
+
 Card drawCard(){ //Draws one card from the deck and returns the struct
     int cardIndex = getRand()%(cardsLeft);
     Card picked = Deck[cardIndex];
@@ -368,11 +398,6 @@ int getRand(){ //Generates a random int based off the current time
 void resetDeck(){ //Returns all the cards to the deck
     memcpy(Deck, baseDeck, sizeof(Deck));
     //memcpy(dealerHand, baseDealerHand, sizeof(dealerHand));
-}
-
-void checkPokerWinner(){ //Checks to see which player has the best hand
-    //TODO: check for player with winning hand
-    return;
 }
 
 UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
@@ -398,8 +423,6 @@ void readUserData(){
         TempBalance->balance = currentBalance.balance;
         TempBalance->next = balanceList;
         balanceList = TempBalance;
-        // currentBalance->next = balanceList;
-        // balanceList = currentBalance;
     }
     fclose(dataFile);
 }
