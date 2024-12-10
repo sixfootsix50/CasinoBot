@@ -251,8 +251,8 @@ void continueBJ(struct discord *client, const struct discord_message *event){
                 printf("\nloop\n");
             } while (readyCheck() == 1 && dealerHandCount <= 17);
             printf("done looping: %d, %d",readyCheck(),dealerHandCount);
-        checkBJWin(client,event);
         }
+        checkBJWin(client,event);
     }
 }
 
