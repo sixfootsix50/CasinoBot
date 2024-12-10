@@ -4,7 +4,6 @@
 #include <string.h>
 #include <concord/discord.h>
 #include <unistd.h>
-// #include <inttypes.h> //SCNu64
 
 typedef struct Card{
     int number; // 1 is ace, 11 jack, 12 queen, 13 king
@@ -36,7 +35,6 @@ Card baseDeck[52] = {{1,"hearts"},{2,"hearts"},{3,"hearts"},{4,"hearts"},{5,"hea
     {1,"clubs"},{2,"clubs"},{3,"clubs"},{4,"clubs"},{5,"clubs"},{6,"clubs"},{7,"clubs"},{8,"clubs"},{9,"clubs"},{10,"clubs"},{11,"clubs"},{12,"clubs"},{13,"clubs"},
     {1,"spades"},{2,"spades"},{3,"spades"},{4,"spades"},{5,"spades"},{6,"spades"},{7,"spades"},{8,"spades"},{9,"spades"},{10,"spades"},{11,"spades"},{12,"spades"},{13,"spades"}};
 Card Deck[52];
-Card pokerRiver[5];
 Card baseDealerHand[11];
 Card dealerHand[11];
 int dealerHandCount;
@@ -47,10 +45,9 @@ Card drawCard();
 int getCardPoints(Card);
 void resetDeck();
 
-int gameRunning = 0; //Indicates if another game is currently running, and which type. 1: black jack, 2: poker
+int gameRunning = 0; //Indicates if another game is currently running
 int takingBets = 0; //Indicates when the game is waiting for players to bet
 void runBetCommand(struct discord *client, const struct discord_message *event);
-// void runPokerCommand(struct discord *client, const struct discord_message *event);
 void runBJCommand(struct discord *client, const struct discord_message *event);
 void runHitCommand(struct discord *client, const struct discord_message *event);
 void runStayCommand(struct discord *client, const struct discord_message *event);
@@ -96,12 +93,11 @@ int main(){
 
 void runJoinCommand(struct discord *client, const struct discord_message *event){
     addPlayer(event->author->id,0);
-    printf("works");
     displayPlayers(client, event);
 }
 
 void runBJCommand(struct discord *client, const struct discord_message *event){
-    resetDeck();//TODO: Wipe Dealer hand
+    resetDeck();
     gameRunning = 1;
     memcpy(dealerHand, baseDealerHand, sizeof(baseDealerHand));
     Player *currentPlayer = PlayerList;
@@ -190,16 +186,6 @@ void runStayCommand(struct discord *client, const struct discord_message *event)
     }
     Player *stayPlayer = getPlayer(event->author->id);
     stayPlayer->bJStay = 1;
-    // stayPlayer->ready = 1;
-    // int allStay = 1;
-    // stayPlayer = PlayerList;
-    // while (stayPlayer != NULL){
-    //     if (stayPlayer->bJStay == 0){
-    //         allStay = 0;
-    //     }
-    //     stayPlayer = stayPlayer->next;
-    // }
-    printf("Done Stay");
     continueBJ(client,event);
 }
 
@@ -228,29 +214,23 @@ void continueBJ(struct discord *client, const struct discord_message *event){
     if (readyCheck() == 1){
         if (dealerHandCount <= 17){
             do {
-                printf("\nAdding to dealer hand\n");
                 char text[256];
                 snprintf(text,256,"Dealer");
                 for (int i=0; i<11;i++){
                     int len = strlen(text);
                     if (dealerHand[i].number == 0){
-                        printf("\nDealerHand: %d\n",dealerHandCount);
                         if (dealerHandCount <= 17){
                             dealerHand[i] = drawCard();
                             dealerHandCount += getCardPoints(dealerHand[i]);
-                            //int len = strlen(text);
                             snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
                         }
                         break;
                     }
-                    //int len = strlen(text);
                     snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
                 }
                 struct discord_create_message params = {.content = text};
                 discord_create_message(client,event->channel_id,&params,NULL);
-                printf("\nloop\n");
             } while (readyCheck() == 1 && dealerHandCount <= 17);
-            printf("done looping: %d, %d",readyCheck(),dealerHandCount);
         }
         checkBJWin(client,event);
     }
@@ -258,8 +238,6 @@ void continueBJ(struct discord *client, const struct discord_message *event){
 
 void checkBJWin(struct discord *client, const struct discord_message *event){
     //Check each player's hand total
-    printf("\nAllStay: %d\n", readyCheck());
-
     if (PlayerCount <= 0){ //Ends game if no more players
         PlayerCount = 0;
         gameRunning = 0;
@@ -274,7 +252,6 @@ void checkBJWin(struct discord *client, const struct discord_message *event){
         return;
     }
     else {
-        printf("\nDone checking :%d\n",dealerHandCount);
         if (readyCheck() == 1){
             if (dealerHandCount <= 21){
                 Player *currentPlayer = PlayerList;
@@ -283,12 +260,10 @@ void checkBJWin(struct discord *client, const struct discord_message *event){
                     currentNext = currentPlayer->next;
                     if (currentPlayer->bjHandCount < dealerHandCount){
                         removePlayer(currentPlayer->userID);
-                        printf("Removed player");
                     }
                     currentPlayer = currentNext;
                 }
             }
-            printf("Done removing players");
         if (PlayerCount <= 0){
             char text[256];
             snprintf(text,256,"Dealer Wins!");
@@ -298,20 +273,18 @@ void checkBJWin(struct discord *client, const struct discord_message *event){
         else{
             displayPlayers(client, event);
         }
-        printf("Done checking wins");
         displayBalances(client, event);
         payout(2);
         displayBalances(client, event);
-        //TODO: add logic to compare hands
         }
     } 
 }
 
-void runBetCommand(struct discord *client, const struct discord_message *event){ //TODO: add ability for players to make bets
+void runBetCommand(struct discord *client, const struct discord_message *event){
     int newBet = 0;
     int finished = 0;
     sscanf(event->content, "%d", &newBet);
-    //readUserData();
+    readUserData();
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
         if (currentPlayer->userID == event->author->id){
@@ -324,13 +297,12 @@ void runBetCommand(struct discord *client, const struct discord_message *event){
         }
         currentPlayer = currentPlayer->next;
     }
-    //writeUserData();
+    writeUserData();
     displayPlayers(client,event);
 }
 
 void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if no entry is found, then adds player to current active players.
-    //readUserData();
-    //Mode determines which game the user will be added to. Where 1=poker, 2=blackj, and 3=roulette.
+    readUserData();
     if (getUserBalance(userID)==NULL){
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
         TempBalance->userID = userID;
@@ -347,7 +319,7 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     memcpy(TempElement->bjHand,baseDealerHand, sizeof baseDealerHand);
     PlayerList = TempElement;
     PlayerCount += 1;
-    //writeUserData();
+    writeUserData();
 }
 
 int getCardPoints(Card input){
@@ -396,13 +368,16 @@ int readyCheck(){
 }
 
 void payout(int multiplier){
+    readUserData();
     Player *currentPlayer = PlayerList;
     Player *nextPlayer;    
     while (currentPlayer != NULL){
-        getUserBalance(currentPlayer->userID)->balance = currentPlayer->bet*multiplier;
+        getUserBalance(currentPlayer->userID)->balance += currentPlayer->bet*multiplier;
         nextPlayer = currentPlayer->next;
         removePlayer(currentPlayer->userID);
+        currentPlayer = nextPlayer;
     }
+    writeUserData();
 }
 
 Card drawCard(){ //Draws one card from the deck and returns the struct
@@ -422,7 +397,7 @@ int getRand(){ //Generates a random int based off the current time
 
 void resetDeck(){ //Returns all the cards to the deck
     memcpy(Deck, baseDeck, sizeof(Deck));
-    //memcpy(dealerHand, baseDealerHand, sizeof(dealerHand));
+    cardsLeft = 52;
 }
 
 UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
@@ -457,7 +432,7 @@ void writeUserData(){
     UserBalance *currentBalance = balanceList;
     while (currentBalance != NULL){
         printf("\n%lu, %d, ", currentBalance->userID, currentBalance->balance);
-        fwrite(&currentBalance,sizeof(UserBalance),1,dataFile);
+        fwrite(currentBalance,sizeof(UserBalance),1,dataFile);
         currentBalance = currentBalance->next;
     }
     printf("\nWriting complete\n");
