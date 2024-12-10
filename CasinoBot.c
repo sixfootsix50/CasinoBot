@@ -248,7 +248,6 @@ void checkBJWin(struct discord *client, const struct discord_message *event){
         snprintf(text,256,"Dealer Wins!");
         struct discord_create_message params = {.content = text};
         discord_create_message(client,event->channel_id,&params,NULL);
-        printf("Game end: No players");
         return;
     }
     else {
@@ -413,14 +412,13 @@ UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
 void readUserData(){
     dataFile = fopen("userData.bin","rb");
     if (dataFile == NULL){
-        printf("Error: missing userData.bin file.");
+        printf("\nError: missing userData.bin file.\n");
         exit(1);
     }
     balanceList = NULL;
     printf("\nReading user data\n");
     UserBalance currentBalance;
     while (fread(&currentBalance,sizeof(UserBalance),1,dataFile)==1){
-        printf("\nUID: %lu, Balance: %d, ", currentBalance.userID, currentBalance.balance);
         UserBalance *TempBalance = (UserBalance *)malloc(sizeof(UserBalance));
         TempBalance->userID = currentBalance.userID;
         TempBalance->balance = currentBalance.balance;
@@ -434,7 +432,6 @@ void writeUserData(){
     dataFile = fopen("userData.bin","wb");
     UserBalance *currentBalance = balanceList;
     while (currentBalance != NULL){
-        printf("\n%lu, %d, ", currentBalance->userID, currentBalance->balance);
         fwrite(currentBalance,sizeof(UserBalance),1,dataFile);
         currentBalance = currentBalance->next;
     }
@@ -445,7 +442,7 @@ void writeUserData(){
 void getBotKey(){
     botKeyFile = fopen("botKey.txt","r");
     if (botKeyFile == NULL){
-        printf("Error: missing botKey.txt file.");
+        printf("\nError: missing botKey.txt file.\n");
         exit(1);
     }
     fseek(botKeyFile,0,SEEK_END);
