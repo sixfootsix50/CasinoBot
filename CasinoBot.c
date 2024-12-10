@@ -412,6 +412,10 @@ UserBalance *getUserBalance(u64snowflake userID){ //Gets given user's balance
 
 void readUserData(){
     dataFile = fopen("userData.bin","rb");
+    if (dataFile == NULL){
+        printf("Error: missing userData.bin file.");
+        exit(1);
+    }
     balanceList = NULL;
     printf("\nReading user data\n");
     UserBalance currentBalance;
@@ -440,6 +444,10 @@ void writeUserData(){
 
 void getBotKey(){
     botKeyFile = fopen("botKey.txt","r");
+    if (botKeyFile == NULL){
+        printf("Error: missing botKey.txt file.");
+        exit(1);
+    }
     fseek(botKeyFile,0,SEEK_END);
     int keyLength = ftell(botKeyFile)+1;
     fseek(botKeyFile,0,SEEK_SET);
