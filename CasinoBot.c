@@ -41,10 +41,10 @@ Card baseDealerHand[11];
 Card dealerHand[11];
 int dealerHandCount;
 int cardsLeft=52;
-int currentPot;
 
 int getRand();
 Card drawCard();
+int getCardPoints(Card *);
 void resetDeck();
 
 int gameRunning = 0; //Indicates if another game is currently running, and which type. 1: black jack, 2: poker
@@ -103,20 +103,21 @@ void runJoinCommand(struct discord *client, const struct discord_message *event)
 void runBJCommand(struct discord *client, const struct discord_message *event){
     resetDeck();//TODO: Wipe Dealer hand
     gameRunning = 1;
-    currentPot=0;
     memcpy(dealerHand, baseDealerHand, sizeof(baseDealerHand));
     Player *currentPlayer = PlayerList;
     while (currentPlayer != NULL){
+        memcpy(currentPlayer->bjHand,baseDealerHand, sizeof baseDealerHand);
+        currentPlayer->ready = 0;
         currentPlayer->bjHand[0] = drawCard();
-        currentPlayer->bjHandCount = currentPlayer->bjHand[0].number;
+        currentPlayer->bjHandCount = getCardPoints(currentPlayer->bjHand[0].number);
         currentPlayer->bjHand[1] = drawCard();
-        currentPlayer->bjHandCount += currentPlayer->bjHand[1].number;
+        currentPlayer->bjHandCount += getCardPoints(currentPlayer->bjHand[1].number);
         currentPlayer->bJStay = 0;
         currentPlayer = currentPlayer->next;
     }
     displayPlayers(client, event);
     dealerHand[0] = drawCard();
-    dealerHandCount = dealerHand[0].number;
+    dealerHandCount = getCardPoints(dealerHand[0].number);
     char text[256];
     snprintf(text,256,"Dealer: :%s:%d",dealerHand[0].suite,dealerHand[0].number);
     struct discord_create_message params = {.content = text};
@@ -213,7 +214,7 @@ void runHitCommand(struct discord *client, const struct discord_message *event){
             i++;
         }
         hitPlayer->bjHand[i] = drawCard();
-        hitPlayer->bjHandCount += hitPlayer->bjHand[i].number;
+        hitPlayer->bjHandCount += getCardPoints(hitPlayer->bjHand[i].number);
         hitPlayer->ready = 1;
         displayPlayers(client, event);
         if (hitPlayer->bjHandCount > 21){
@@ -235,7 +236,7 @@ void continueBJ(struct discord *client, const struct discord_message *event, int
                         printf("\nDealerHand: %d\n",dealerHandCount);
                         if (dealerHandCount <= 17){
                             dealerHand[i] = drawCard();
-                            dealerHandCount += dealerHand[i].number;
+                            dealerHandCount += getCardPoints(dealerHand[i].number);
                             int len = strlen(text);
                             snprintf(text+len,(sizeof text) - len,", :%s:%d",dealerHand[i].suite, dealerHand[i].number);
                         }
@@ -303,10 +304,10 @@ void runBetCommand(struct discord *client, const struct discord_message *event){
         if (currentPlayer->userID == event->author->id){
             if (getUserBalance(event->author->id)->balance < newBet){
                 newBet = getUserBalance(event->author->id)->balance;
+                getUserBalance(currentPlayer->userID)->balance = 0;
             }
             currentPlayer->bet += newBet;
             getUserBalance(currentPlayer->userID)->balance -= newBet;
-            currentPot += newBet;
         }
         currentPlayer = currentPlayer->next;
     }
@@ -327,13 +328,22 @@ void addPlayer(u64snowflake userID, int bet){ //Adds player to user database if 
     Player *TempElement = (Player *)malloc(sizeof(Player));
     TempElement->userID = userID;
     TempElement->bet = bet;
-    TempElement->ready = 0;
-    TempElement->bjHandCount = 0;
-    memcpy(TempElement->bjHand,baseDealerHand, sizeof baseDealerHand);
     TempElement->next = PlayerList;
     PlayerList = TempElement;
     PlayerCount += 1;
     //writeUserData();
+}
+
+int getCardPoints(Card *input){
+    if (input->number > 10){
+        return 10;
+    }
+    else if (input->number <= 0){
+        return 0;
+    }
+    else {
+        return input->number;
+    }
 }
 
 Player *getPlayer(u64snowflake userID){
