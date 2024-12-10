@@ -273,7 +273,6 @@ void checkBJWin(struct discord *client, const struct discord_message *event){
         else{
             displayPlayers(client, event);
         }
-        displayBalances(client, event);
         payout(2);
         displayBalances(client, event);
         }
