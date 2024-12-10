@@ -46,7 +46,6 @@ int getCardPoints(Card);
 void resetDeck();
 
 int gameRunning = 0; //Indicates if another game is currently running
-int takingBets = 0; //Indicates when the game is waiting for players to bet
 void runBetCommand(struct discord *client, const struct discord_message *event);
 void runBJCommand(struct discord *client, const struct discord_message *event);
 void runHitCommand(struct discord *client, const struct discord_message *event);
@@ -78,12 +77,14 @@ int main(){
 
     ccord_global_init();
     struct discord *client = discord_init(botKey);
+    free(botKey);
 
     discord_set_on_command(client, "!startblackj", &runBJCommand);
     discord_set_on_command(client, "!join", &runJoinCommand);
     discord_set_on_command(client, "!bet", &runBetCommand);
     discord_set_on_command(client, "!hit", &runHitCommand);
     discord_set_on_command(client, "!stay", &runStayCommand);
+    discord_set_on_command(client, "!balances", &displayBalances);
 
     discord_run(client);
 
